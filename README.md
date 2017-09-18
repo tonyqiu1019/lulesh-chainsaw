@@ -7,16 +7,16 @@ Rewrite the lulesh problem using Chainsaw, a new parallel language
 #### Week 9.11
 
 - Most time-consuming parts (according to profiler)
-	- `FunctionDerivative`
-		- `main`
+
+	- `CalcElemShapeFunctionDerivative`
 		- `LagrangeLeapFrog` (2640)
 		- `LagrangeNodal` (1252)
 		- `CalcForceForNodes` (1132)
 		- `CalcVolumeForceForElems` (1090)
 		- `IntegrateStressInElems` (523)
 		- **~50%** `CalcElemShapeFunctionDerivative` (319)
-	- `CalcElemVolume`
-		- `main`
+	
+	- `CalcKinematicForElems` + `CalcElemVolume`
 		- `LagrangeLeapFrog` (2640)
 		- `LagrangeElements` (2454)
 		- `CalcLagrangeElements` (1601)
