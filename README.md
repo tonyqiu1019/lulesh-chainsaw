@@ -1,6 +1,6 @@
 # lulesh-chainsaw
 
-Rewrite the lulesh problem using Chainsaw, a new parallel language
+Rewrite the lulesh problem in hydrodynamics using Chainsaw, a new parallel language.
 
 ## Timeline
 
@@ -25,16 +25,16 @@ Rewrite the lulesh problem using Chainsaw, a new parallel language
 
 #### Weak 9.18
 
-- `Domain`: a collection of vectors, condition variables (time), constants
+- `Domain`: a collection of vectors, condition variables (time), constants.
 	- Mainly consists of a bunch of getters/setters
 	- ~700 line constructor (can simply replicate, or some optimizations)
 
-- Communication: everything is done through a 2-d array `fieldData`
+- Communication: everything is done through a 2-d array `fieldData`.
 	- No indication of saving old/new states of the cube
 	- Boundary conditions: typical, every node gets a local `Domain`
 	- Need to walk through `CommSend` and `CommRecv` since customized
 
-- Next Steps: try to replicate the most time-consuming part `FunctionDerivative`
+- Next Steps: try to replicate the most time-consuming part `FunctionDerivative`.
 	- Modify original code to just time that part
 	- Compare the performance results of original and Chainsaw
 	- May require multiple weeks since we need more understanding of Chainsaw
