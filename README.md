@@ -23,7 +23,7 @@ Rewrite the lulesh problem in hydrodynamics using Chainsaw, a new parallel langu
 		- **~10%** `CalcKinematicsForElems` (1533)
 		- **~2%** `CalcElemVolume` (1302)
 
-#### Weak 9.18
+#### Week 9.18
 
 - `Domain`: a collection of vectors, condition variables (time), constants.
 	- Mainly consists of a bunch of getters/setters
