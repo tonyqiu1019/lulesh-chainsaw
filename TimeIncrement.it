@@ -1,0 +1,60 @@
+Program (args) {
+    timeIncrementEnv = new TaskEnvironment(name: "Time Increment")
+    execute(task: "Time Increment"; environment: timeIncrementEnv; \
+		initialize: args.size)
+}
+
+Task "Time Increment":
+	Define:
+        dtcourant, dthydro, dtfixed, dtmax: Real double-precision
+        time, deltatime, stoptime: Real double-precision
+        deltatimemultlb, deltatimemultub: Real double-precision
+        cycle: Integer
+	Environment:
+		// do we need this part now?
+	Initialize (size):
+        // these variables reflect the real lulesh program
+		domainSize = size
+        time = 0.0
+        stoptime = 0.01
+        cycle = 0
+        deltatime = 0
+        dtmax = 0.01
+        dtfixed = -1e-6
+        deltatimemultlb = 1.1
+        deltatimemultub = 1.2
+        // we've made up these variables
+        dtcourant = 0
+        dthydro = 0
+	Stages:
+		timeIncrement() {
+            dtcourant = dtcourant + 1e-6
+            dthydro = dthydro + 1e-6
+            if (dtfixed < 0 && cycle != 0) {
+                olddt = deltatime
+                newdt = dtcourant / 2.0
+                if (dthydro < newdt) {
+                    newdt = dthydro * 2.0 / 3.0
+                }
+                ratio = newdt / olddt
+                if (ratio > 1) {
+                    if (ratio > deltatimemultlb) {
+                        newdt = olddt
+                    } else if (ratio > deltatimemultub) {
+                        newdt = olddt * deltatimemultub
+                    }
+                }
+                if (newdt > dtmax) {
+                    newdt = dtmax
+                }
+            }
+            deltatime = newdt
+            time = time + deltatime
+            cycle = cycle + 1
+        }
+	Computation:
+		do {
+            timeIncrement()
+        } while (time < stoptime)
+	Partition:
+		// how do we write this part?
