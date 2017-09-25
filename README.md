@@ -46,4 +46,5 @@ Rewrite the lulesh problem in hydrodynamics using Chainsaw, a new parallel langu
 - 'Object-Oriented': How to translate object oriented code into Chainsaw without adding it all to computation phase?
 
 - 'Time Increment': Working on IT code to test the Time Increment component of the LULESH code. 
+	- which frame of reference should we be in when coding, MPI + OPENMP or just MPI?
 
