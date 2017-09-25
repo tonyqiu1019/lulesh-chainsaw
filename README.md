@@ -38,3 +38,12 @@ Rewrite the lulesh problem in hydrodynamics using Chainsaw, a new parallel langu
 	- Modify original code to just time that part
 	- Compare the performance results of original and Chainsaw
 	- May require multiple weeks since we need more understanding of Chainsaw
+	
+#### Week 9.25 - Understanding the Chainsaw language
+
+- 'Iterations in Stencil.it': Iterations in Stenil code was correct, but no understanding as to why it is correct. 
+
+- 'Object-Oriented': How to translate object oriented code into Chainsaw without adding it all to computation phase?
+
+- 'Time Increment': Working on IT code to test the Time Increment component of the LULESH code. 
+
