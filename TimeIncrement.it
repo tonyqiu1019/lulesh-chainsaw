@@ -6,31 +6,29 @@ Program (args) {
 
 Task "Time Increment":
     Define:
+        domain: 2d Array of Real double-precision
         dtcourant, dthydro, dtfixed, dtmax: Real double-precision
         time, deltatime, stoptime: Real double-precision
         deltatimemultlb, deltatimemultub: Real double-precision
-        cycle: Integer
+        cycle, domainSize: Integer
     Environment:
-	// do we need this part now?
+        domain: link
     Initialize (size):
-        // these variables reflect the real lulesh program
         domainSize = size
         time = 0.0
         stoptime = 0.01
         cycle = 0
         deltatime = 0
         dtmax = 0.01
-        dtfixed = -1e-6
+        dtfixed = -0.000001
         deltatimemultlb = 1.1
         deltatimemultub = 1.2
-       
-        // we've made up these variables
         dtcourant = 0
         dthydro = 0
     Stages:
-        timeIncrement() {
-            dtcourant = dtcourant + 1e-6
-            dthydro = dthydro + 1e-6
+        timeIncrement(domain) {
+            dtcourant = dtcourant + 0.000001
+            dthydro = dthydro + 0.000001
             if (dtfixed < 0 && cycle != 0) {
                 olddt = deltatime
                 newdt = dtcourant / 2.0
@@ -54,8 +52,10 @@ Task "Time Increment":
             cycle = cycle + 1
         }
     Computation:
-	do {
-            timeIncrement()
-        } while (time < stoptime)
+	Space A {
+                timeIncrement(domain)
+        }
     Partition:
-	// how do we write this part?
+	Space A <un-partitioned> {
+            domain
+        }
