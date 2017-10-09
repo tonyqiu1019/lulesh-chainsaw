@@ -47,4 +47,12 @@ Rewrite the lulesh problem in hydrodynamics using Chainsaw, a new parallel langu
 
 - 'Time Increment': Working on IT code to test the Time Increment component of the LULESH code. 
 	- which frame of reference should we be in when coding, MPI + OPENMP or just MPI?
+	
+#### Week 10.9 - Understanding the Chainsaw program syntax
+
+- How to print in an IT program?
+
+- Why does our program execute 20 times when unpartition is specified?
+
+
 
