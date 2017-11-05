@@ -12,11 +12,81 @@ Task "Time Increment":
         time, deltatime, stoptime: Real double-precision
         deltatimemultlb, deltatimemultub: Real double-precision
         cycle, domainSize: Integer
-    Environment:
+		//CalcElemShapeFunctionDerivatives Variables
+		x: 1d Array of Real double-precision
+		y: 1d Array of Real double-precision
+		z: 1d Array of Real double-precision
+		b: 2d Array of Real double-precision
+		volume: Real double-precision
+	//	x0,x1,x2,x3,x4,x5,x6,x7: Real double-precision
+	//	y0,y1,y2,y3,y4,y5,y6,y7: Real double-precision
+	//	z0,z1,z2,z3,z4,z5,z6,z7: Real double-precision
+		fjxxi, fjxet, fjxze: Real double-precision 
+		fjyxi, fjyet, fjyze: Real double-precision 
+		fjzxi, fjzet, fjzze: Real double-precision 
+		cjxxi, cjxet, cjxze: Real double-precision
+		cjyxi, cjyet, cjyze: Real double-precision
+		cjzxi, cjzet, cjzze: Real double-precision
+
+	Environment:
         domain: link
         //cycle: create
     Initialize (size):
-        domainSize = size
+		
+		fjxxi = (0.125) * ( (x[6]-x[0]) + (x[5]-x[3]) - (x[7]-x[1]) - (x[4]-x[2]) )
+		fjxet = (0.125) * ( (x[6]-x[0]) - (x[5]-x[3]) + (x[7]-x[1]) - (x[4]-x[2]) )
+		fjxze = (0.125) * ( (x[6]-x[0]) + (x[5]-x[3]) + (x[7]-x[1]) + (x[4]-x[2]) )
+
+		fjyxi = (0.125) * ( (y[6]-y[0]) + (y[5]-y[3]) - (y[7]-y[1]) - (y[4]-y[2]) )
+		fjyet = (0.125) * ( (y[6]-y[0]) - (y[5]-y[3]) + (y[7]-y[1]) - (y[4]-y[2]) )
+		fjyze = (0.125) * ( (y[6]-y[0]) + (y[5]-y[3]) + (y[7]-y[1]) + (y[4]-y[2]) )
+
+		fjzxi = (0.125) * ( (z[6]-z[0]) + (z[5]-z[3]) - (z[7]-z[1]) - (z[4]-z[2]) )
+		fjzet = (0.125) * ( (z[6]-z[0]) - (z[5]-z[3]) + (z[7]-z[1]) - (z[4]-z[2]) )
+		fjzze = (0.125) * ( (z[6]-z[0]) + (z[5]-z[3]) + (z[7]-z[1]) + (z[4]-z[2]) )
+		
+		cjxxi =    (fjyet * fjzze) - (fjzet * fjyze)
+		cjxet = 0 - (fjyxi * fjzze) + (fjzxi * fjyze)
+		cjxze =    (fjyxi * fjzet) - (fjzxi * fjyet)
+
+		cjyxi = 0 - (fjxet * fjzze) + (fjzet * fjxze)
+		cjyet =    (fjxxi * fjzze) - (fjzxi * fjxze)
+		cjyze = 0 - (fjxxi * fjzet) + (fjzxi * fjxet)
+
+		cjzxi =    (fjxet * fjyze) - (fjyet * fjxze)
+		cjzet = 0 - (fjxxi * fjyze) + (fjyxi * fjxze)
+		cjzze =    (fjxxi * fjyet) - (fjyxi * fjxet)
+		
+		b[0][0] = 0  -  cjxxi  -  cjxet  -  cjxze
+		b[0][1] =      cjxxi  -  cjxet  -  cjxze
+		b[0][2] =      cjxxi  +  cjxet  -  cjxze
+		b[0][3] = 0 -  cjxxi  +  cjxet  -  cjxze
+		b[0][4] = 0 -b[0][2]
+		b[0][5] = 0 -b[0][3]
+		b[0][6] = 0 -b[0][0]
+		b[0][7] = 0 -b[0][1]
+
+		b[1][0] = 0  -  cjyxi  -  cjyet  -  cjyze
+		b[1][1] =      cjyxi  -  cjyet  -  cjyze
+		b[1][2] =      cjyxi  +  cjyet  -  cjyze
+		b[1][3] = 0  -  cjyxi  +  cjyet  -  cjyze
+		b[1][4] = 0 -b[1][2]
+		b[1][5] = 0 -b[1][3]
+		b[1][6] = 0 -b[1][0]
+		b[1][7] = 0 -b[1][1]
+
+		b[2][0] = 0  -  cjzxi  -  cjzet  -  cjzze
+		b[2][1] =      cjzxi  -  cjzet  -  cjzze
+		b[2][2] =      cjzxi  +  cjzet  -  cjzze
+		b[2][3] = 0  -  cjzxi  +  cjzet  -  cjzze
+		b[2][4] = 0 -b[2][2]
+		b[2][5] = 0 -b[2][3]
+		b[2][6] = 0 -b[2][0]
+		b[2][7] = 0 -b[2][1]		
+		
+		volume = (8.0) * ( fjxet * cjxet + fjyet * cjyet + fjzet * cjzet)
+		//END CESFD
+		domainSize = size
         time = 0.0
         stoptime = 0.01
         cycle = 1
