@@ -760,7 +760,6 @@ Task "Init":
             }for i in tmpedgeElems
         }
 
-        //local side
         //looks like all MPI stuff idk if we need it
         initMeshDecomp(col, row, plane, side) {
             // local
@@ -801,10 +800,6 @@ Task "Init":
                 zdd[i] = 0
                 nodalMass[i] = 0
             }for i in xd
-        }
-
-        calcvolume(domain) {
-            volume = 0
         }
 
         some_function3(domain) {
