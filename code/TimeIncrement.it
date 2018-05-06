@@ -1,0 +1,71 @@
+Program(args) {
+    timeIncrementEnv = new TaskEnvironment(name: "Time Increment")
+    bind_input(timeIncrementEnv, "domain", args.input_file)
+    execute(task: "Time Increment"; environment: timeIncrementEnv; \
+        initialize: args.size)
+}
+
+Task "Time Increment":
+    Define:
+        domain: 2d Array of Real double-precision
+        dtcourant, dthydro, dtfixed, dtmax: Real double-precision
+        time, deltatime, stoptime: Real double-precision
+        deltatimemultlb, deltatimemultub: Real double-precision
+        cycle, domainSize: Integer
+    Environment:
+        domain: link
+        //cycle: create
+    Initialize (size):
+        domainSize = size
+        time = 0.0
+        stoptime = 0.01
+        cycle = 1
+        deltatime = 0
+        dtmax = 0.01
+        dtfixed = -0.000001
+        deltatimemultlb = 1.1
+        deltatimemultub = 1.2
+        dtcourant = 0
+        dthydro = 0
+    Stages:
+        timeIncrement(domain) {
+            deltatime = domainSize * 0.01
+            do {
+            dtcourant = dtcourant + 0.00005
+            dthydro = dthydro + 0.00005
+            if (dtfixed < 0 && cycle != 0) {
+                olddt = deltatime
+                newdt = dtcourant / 2.0
+                if (dthydro < newdt) {
+                    newdt = dthydro * 2.0 / 3.0
+                }
+                ratio = newdt / olddt
+                if (ratio > 1) {
+                    if (ratio > deltatimemultlb) {
+                        newdt = olddt
+                    } else if (ratio > deltatimemultub) {
+                        newdt = olddt * deltatimemultub
+                    }
+                }
+                if (newdt > dtmax) {
+                    newdt = dtmax
+                }
+            }
+            deltatime = newdt
+            time = time + deltatime
+            cycle = cycle + 1
+            } while (time < stoptime)
+            @Extern {
+                @Language "C++"
+                @Includes { iostream }
+                ${ std::cout << "cycle is " << taskGlobals->cycle << "! " << std::endl; }$
+            }
+        }
+    Computation:
+        Space A {
+            timeIncrement(domain)
+        }
+    Partition:
+        Space A <un-partitioned> {
+            domain
+        }

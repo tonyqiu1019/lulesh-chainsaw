@@ -1,0 +1,1001 @@
+Program(args) {
+    initEnv = new TaskEnvironment(name: "Init")
+    bind_input(initEnv, "domain", args.domain)
+    execute(task: "Init"; environment: initEnv; \
+        initialize: args.numRanks, args.colLoc, args.rowLoc, args.planeLoc, \
+        args.nx, args.tp, args.nr, args.balance, args.cost)
+}
+
+Function getIntMin() {
+    ret = 0
+    @Extern {
+        @Language "C++"
+        @Includes { climits }
+        ${
+            ret = INT_MIN;
+        }$
+    }
+    return ret
+}
+
+Function convertHex(str) {
+    ret = 0
+    @Extern {
+        @Language "C++"
+        @Includes { cstdlib }
+        ${
+            ret = atoi(str);
+        }$
+    }
+    return ret
+}
+
+Function logicalOr(op1, op2) {
+    tmp1 = op1
+    tmp2 = op2
+    ret = 0
+    @Extern {
+        @Language "C++"
+        ${
+            ret = int(tmp1) | int(tmp2);
+        }$
+    }
+    return ret
+}
+
+
+Task "Init":
+    Define:
+        domain: 2d Array of Real double-precision
+
+        e_cut,
+        p_cut,
+        q_cut,
+        v_cut,
+        u_cut,
+        hgcoef,
+        ss4o3,
+        qstop,
+        monoq_max_slope,
+        monoq_limiter_mult,
+        qlc_monoq,
+        qqc_monoq,
+        qqc,
+        eosvmax,
+        eosvmin,
+        pmin,
+        emin,
+        dvovmax,
+        refdens : Real double-precision
+
+        m_numRanks,
+        m_colLoc,
+        m_rowLoc,
+        m_planeLoc,
+        m_nx,
+        m_tp,
+        m_balance,
+        m_nr,
+        m_cost: Integer
+
+        sizeX,
+        sizeY,
+        sizeZ,
+        numElem,
+        numNode: Integer
+
+        regNumList: 1d Array of Integer
+
+        //AllocateElemPersistent
+        nodelist: 1d Array of Real double-precision
+
+        lxim,
+        lxip,
+        letam,
+        letap,
+        lzetam,
+        lzetap,
+        elemBC,
+        e,
+        p,
+        q,
+        ql,
+        qq,
+        v,
+        volo,
+        delv,
+        vdov,
+        arealg,
+        ss,
+        elemMass: 1d Array of Real double-precision
+
+        //AllocateNodePersistent
+        x,
+        y,
+        z,
+        xd,
+        yd,
+        zd,
+        xdd,
+        ydd,
+        zdd,
+        fx,
+        fy,
+        fz,
+        nodalMass: 1d Array of Real double-precision
+
+        maxEdgeSize,
+        rowMin,
+        rowMax,
+        colMin,
+        colMax,
+        planeMin,
+        planeMax: Integer
+
+        symmX,
+        symmY,
+        symmZ: 1d Array of Real double-precision
+
+        numReg: Integer
+
+        regElemSize: 1d Array of Integer
+        regBinEnd: 1d Array of Real double-precision
+        regElemlist: 2d Array of Integer
+
+        // constants defined in lulesh.h
+        zETA_M_SYMM,
+        zETA_M_COMM,
+        zETA_P_FREE,
+        zETA_P_COMM,
+        eTA_M_SYMM,
+        eTA_M_COMM,
+        eTA_P_FREE,
+        eTA_P_COMM,
+        xI_M_SYMM,
+        xI_M_COMM,
+        xI_P_FREE,
+        xI_P_COMM: Integer
+
+        // added variables
+        edgeElems,
+        edgeNodes: Integer
+
+        x_local,
+        y_local,
+        z_local,
+        ghostIdx: 1d Array of Real double-precision
+
+        volume: Real double-precision
+
+        // temporal variables
+        tmp: Integer
+        tmpedgeElems,
+        tmpbalance,
+        tmpedgeNodes,
+        tmpedgeElemssq: 1d Array of Real double-precision
+
+    Environment:
+        domain: link
+
+
+    Initialize (numRanks, colLoc, rowLoc, planeLoc, nx, tp, nr, balance, cost):
+        e_cut=0.0000001
+        p_cut=0.0000001
+        q_cut=0.0000001
+        v_cut=0.0000000001
+        u_cut=0.0000001
+        hgcoef=3.0
+        ss4o3=4.0/3.0
+        qstop=1000000000000
+        monoq_max_slope=1.0
+        monoq_limiter_mult=2.0
+        qlc_monoq=0.5
+        qqc_monoq=2.0/3.0
+        qqc=2.0
+        eosvmax=1000000000
+        eosvmin=0.000000001
+        pmin=0
+        emin=-1000000000000000
+        dvovmax=0.1
+        refdens=1.0
+
+        m_numRanks = numRanks
+        m_colLoc = colLoc
+        m_rowLoc = rowLoc
+        m_planeLoc = planeLoc
+        m_nx = nx
+        m_tp = tp
+        m_nr = nr
+        m_balance = balance
+        m_cost = cost
+
+        // added code for successful allocation
+        edgeElems = m_nx
+        edgeNodes = edgeElems + 1
+        sizeX = edgeElems
+        sizeY = edgeElems
+        sizeZ = edgeElems
+        numElem = edgeElems * edgeElems * edgeElems
+        numNode = edgeNodes * edgeNodes * edgeNodes
+        numReg = m_nr
+
+        regNumList.dimension1.range.min = 0
+        regNumList.dimension1.range.max = numElem-1
+
+        nodelist.dimension1.range.min = 0
+        nodelist.dimension1.range.max = 8*numElem-1
+
+        lxim.dimension1.range.min = 0
+        lxim.dimension1.range.max = numElem-1
+
+        lxip.dimension1.range.min = 0
+        lxip.dimension1.range.max = numElem-1
+
+        letam.dimension1.range.min = 0
+        letam.dimension1.range.max = numElem-1
+
+        letap.dimension1.range.min = 0
+        letap.dimension1.range.max = numElem-1
+
+        lzetam.dimension1.range.min = 0
+        lzetam.dimension1.range.max = numElem-1
+
+        lzetap.dimension1.range.min = 0
+        lzetap.dimension1.range.max = numElem-1
+
+        elemBC.dimension1.range.min = 0
+        elemBC.dimension1.range.max = numElem-1
+
+        e.dimension1.range.min = 0
+        e.dimension1.range.max = numElem-1
+
+        p.dimension1.range.min = 0
+        p.dimension1.range.max = numElem-1
+
+        q.dimension1.range.min = 0
+        q.dimension1.range.max = numElem-1
+
+        ql.dimension1.range.min = 0
+        ql.dimension1.range.max = numElem-1
+
+        qq.dimension1.range.min = 0
+        qq.dimension1.range.max = numElem-1
+
+        v.dimension1.range.min = 0
+        v.dimension1.range.max = numElem-1
+
+        volo.dimension1.range.min = 0
+        volo.dimension1.range.max = numElem-1
+
+        delv.dimension1.range.min = 0
+        delv.dimension1.range.max = numElem-1
+
+        vdov.dimension1.range.min = 0
+        vdov.dimension1.range.max = numElem-1
+
+        arealg.dimension1.range.min = 0
+        arealg.dimension1.range.max = numElem-1
+
+        ss.dimension1.range.min = 0
+        ss.dimension1.range.max = numElem-1
+
+        elemMass.dimension1.range.min = 0
+        elemMass.dimension1.range.max = numElem-1
+
+        x.dimension1.range.min = 0
+        x.dimension1.range.max = numNode-1
+
+        y.dimension1.range.min = 0
+        y.dimension1.range.max = numNode-1
+
+        z.dimension1.range.min = 0
+        z.dimension1.range.max = numNode-1
+
+        xd.dimension1.range.min = 0
+        xd.dimension1.range.max = numNode-1
+
+        yd.dimension1.range.min = 0
+        yd.dimension1.range.max = numNode-1
+
+        zd.dimension1.range.min = 0
+        zd.dimension1.range.max = numNode-1
+
+        xdd.dimension1.range.min = 0
+        xdd.dimension1.range.max = numNode-1
+
+        ydd.dimension1.range.min = 0
+        ydd.dimension1.range.max = numNode-1
+
+        zdd.dimension1.range.min = 0
+        zdd.dimension1.range.max = numNode-1
+
+        fx.dimension1.range.min = 0
+        fx.dimension1.range.max = numNode-1
+
+        fy.dimension1.range.min = 0
+        fy.dimension1.range.max = numNode-1
+
+        fz.dimension1.range.min = 0
+        fz.dimension1.range.max = numNode-1
+
+        nodalMass.dimension1.range.min = 0
+        nodalMass.dimension1.range.max = numNode-1
+
+        symmX.dimension1.range.min = 0
+        symmX.dimension1.range.max = edgeNodes*edgeNodes-1
+
+        symmY.dimension1.range.min = 0
+        symmY.dimension1.range.max = edgeNodes*edgeNodes-1
+
+        symmZ.dimension1.range.min = 0
+        symmZ.dimension1.range.max = edgeNodes*edgeNodes-1
+
+        regElemSize.dimension1.range.min = 0
+        regElemSize.dimension1.range.max = numReg-1
+
+        regBinEnd.dimension1.range.min = 0
+        regBinEnd.dimension1.range.max = numReg-1
+
+        regElemlist.dimension1.range.min = 0
+        regElemlist.dimension1.range.max = numReg-1
+        // *** commented out on purpose ***
+        // regElemlist.dimension2.range.min = 0
+        // regElemlist.dimension2.range.max = numReg-1
+
+        // constants defined in lulesh.h
+        zETA_M_SYMM = convertHex("0x01000")
+        zETA_M_COMM = convertHex("0x04000")
+        zETA_P_FREE = convertHex("0x10000")
+        zETA_P_COMM = convertHex("0X20000")
+        eTA_M_SYMM = convertHex("0x00040")
+        eTA_M_COMM = convertHex("0x00100")
+        eTA_P_FREE = convertHex("0x00400")
+        eTA_P_COMM = convertHex("0x00800")
+        xI_M_SYMM = convertHex("0x00001")
+        xI_M_COMM = convertHex("0x00004")
+        xI_P_FREE = convertHex("0x00010")
+        xI_P_COMM = convertHex("0x00020")
+
+        // added variables
+        x_local.dimension1.range.min = 0
+        x_local.dimension1.range.max = 7
+        y_local.dimension1.range.min = 0
+        y_local.dimension1.range.max = 7
+        z_local.dimension1.range.min = 0
+        z_local.dimension1.range.max = 7
+        ghostIdx.dimension1.range.min = 0
+        ghostIdx.dimension1.range.max = 5
+
+        // temporal variables
+        tmpedgeElems.dimension1.range.min = 0
+        tmpedgeElems.dimension1.range.max = edgeElems-1
+        tmpbalance.dimension1.range.min = 0
+        tmpbalance.dimension1.range.max = balance-1
+        tmpedgeNodes.dimension1.range.min = 0
+        tmpedgeNodes.dimension1.range.max = edgeNodes-1
+        tmpedgeElemssq.dimension1.range.min = 0
+        tmpedgeElemssq.dimension1.range.max = edgeElems*edgeElems-1
+
+    Stages:
+        setupCommBuffers(edgeNodes) {
+            maxEdgeSize_tmp = sizeX
+            if(sizeY > maxEdgeSize_tmp) {
+                maxEdgeSize_tmp = sizeY
+            }
+            if(sizeZ > maxEdgeSize_tmp) {
+                maxEdgeSize_tmp = sizeZ
+            }
+            maxEdgeSize_tmp = maxEdgeSize_tmp +1
+                maxPlaneSize = (maxEdgeSize_tmp*maxEdgeSize_tmp + 15) & (-16)
+                maxEdgeSize = (maxEdgeSize_tmp +15) & (-16)
+                if(m_rowLoc == 0) {
+                    rowMin = 0
+                } else {
+                    rowMin = 1
+                }
+            if(m_rowLoc == tp-1) {
+                rowMax = 0
+            } else {
+                rowMax = 1
+            }
+            if(m_colLoc == 0) {
+                rowMin = 0
+            } else {
+                rowMin = 1
+            }
+            if(m_colLoc == tp-1) {
+                rowMin = 0
+            } else {
+                rowMin = 1
+            }
+            if(m_planeLoc == 0) {
+                rowMin = 0
+            } else {
+                rowMin = 1
+            }
+            if(m_planeLoc == tp-1) {
+                rowMin = 0
+            } else {
+                rowMin = 1
+            }
+        }
+
+        buildMesh(nx, edgeNodes, edgeElems) {
+            meshEdgeElems = tp * nx
+            nidx = 0
+            tz = 1.125*(planeLoc*nx)/meshEdgeElems
+
+            do {
+                tmpedgeNodes[plane] = 0
+                ty = 1.125 * rowLoc * nx / meshEdgeElems
+                do {
+                    tmpedgeNodes[row] = 0
+                    tx = 1.125 * colLoc * nx / meshEdgeElems
+                    do {
+                        tmpedgeNodes[col] = 0
+                        x[nidx] = tx
+                        y[nidx] = ty
+                        z[nidx] = tz
+                        nidx = nidx + 1
+                        tx = 1.125 * (colLoc * nx + col +1) / meshEdgeElems
+                    } for col in tmpedgeNodes
+                    ty = 1.125 * (rowLoc * nx + row +1) / meshEdgeElems
+                } for row in tmpedgeNodes
+                tz = 1.125 * (rowLoc * nx + plane +1) / meshEdgeElems
+            } for plane in tmpedgeNodes
+
+            zidx = 0
+            nidx = 0
+            do {
+                tmpedgeElems[plane] = 0
+                do {
+                    tmpedgeElems[row] = 0
+                    do {
+                        tmpedgeElems[col] = 0
+                        nodelist[8*zidx] = nidx
+                        nodelist[8*zidx+1] = nidx +1
+                        nodelist[8*zidx+2] = nidx + edgeNodes +1
+                        nodelist[8*zidx+3] = nidx + edgeNodes
+                        nodelist[8*zidx+4] = edgeNodes*edgeNodes
+                        nodelist[8*zidx+5] = nidx + edgeNodes*edgeNodes +1
+                        nodelist[8*zidx+6] = nidx + edgeNodes*edgeNodes + edgeNodes + 1
+                        nodelist[8*zidx+7] = nidx + edgeNodes*edgeNodes + edgeNodes
+                        zidx = zidx + 1
+                        nidx = nidx + 1
+                    }for col in tmpedgeElems
+                    nidx = nidx + 1
+                }for row in tmpedgeElems
+                nidx = nidx + edgeNodes
+            }for plane in tmpedgeElems
+        }
+
+        createRegionIndexSets(nr, balance) {
+            numReg = nr
+            nextIndex = 0
+            if(numReg == 1)	{
+                if (nextIndex < numElem) {
+                    do {
+                        regNumList[nextIndex] = 1
+                        nextIndex = nextIndex + 1
+                    }while (nextIndex < numElem)
+                }
+                regElemSize[0] = 0
+            } else {
+                regionNum = 0
+                regionVar = 0
+                lastReg = -1
+                binSize = 0
+                elements = 0
+                runto = 0
+                costDenominator = 0
+                do {
+                    regElemSize[k] = 0
+                    tmp = 1
+                    do {
+                        tmpbalance[j] = 0
+                        tmp = tmp * (i+1)
+                    }for j in tmpbalance
+                    costDenominator = costDenominator + tmp
+                    regBinEnd[k] = costDenominator
+                }for k in regElemSize
+
+                if (nextIndex < numElem) {
+                    do {
+                        @Extern {
+                            @Language "C++"
+                            @Includes { cstdlib }
+                            ${
+                                regionVar = rand() % costDenominator;
+                            }$
+                        }
+                        i = 0
+                        if (regionVar >= regBinEnd[i]) {
+                            do {
+                                i = i + 1
+                            }while(regionVar >= regBinEnd[i])
+                        }
+
+                        regionNum = (i % numReg) + 1
+
+                        if (regionNum == lastReg) {
+                            do {
+                                @Extern {
+                                    @Language "C++"
+                                    @Includes { cstdlib }
+                                    ${
+                                        regionVar = rand() % costDenominator;
+                                    }$
+                                }
+                                i = 0
+                                do {
+                                    i = i + 1
+                                } while(regionVar >= regBinEnd[i])
+                                regionNum = (i % numReg) + 1
+                            } while (regionNum == lastReg)
+                        }
+
+                        @Extern {
+                            @Language "C++"
+                            @Includes { cstdlib }
+                            ${
+                                binSize = rand() % 1000;
+                                if(binSize < 773) {
+                                    elements = rand() % 15 + 1;
+                                }
+                                else if(binSize < 937) {
+                                    elements = rand() % 16 + 16;
+                                }
+                                else if(binSize < 970) {
+                                    elements = rand() % 32 + 32;
+                                }
+                                else if(binSize < 974) {
+                                    elements = rand() % 64 + 64;
+                                }
+                                else if(binSize < 978) {
+                                    elements = rand() % 128 + 128;
+                                }
+                                else if(binSize < 981) {
+                                    elements = rand() % 256 + 256;
+                                }
+                                else
+                                    elements = rand() % 1537 + 512;
+                            }$
+                        }
+                        runto = elements + nextIndex
+
+                        if (nextIndex < runto && nextIndex < numElem) {
+                            do {
+                                regNumList[nextIndex] = regionNum
+                                nextIndex = nextIndex + 1
+                            } while(nextIndex < runto && nextIndex < numElem)
+                        }
+
+                        lastReg = regionNum
+                    } while (nextIndex < numElem)
+                }
+            }
+            do {
+                r = regNumList[j] -1
+                regElemSize[r] = regElemSize[r] + 1
+            }for j in regNumList
+
+            tmp = 0
+            do {
+                if (regElemSize[j] > tmp) {
+                    tmp = regElemSize[j]
+                }
+                regElemSize[j] = 0
+            }for j in regElemSize
+
+            regElemlist.dimension2.range.min = 0
+            regElemlist.dimension2.range.max = tmp-1
+
+            @Extern {
+                @Language "C++"
+                @Includes { cstdlib }
+                ${
+                    lpu->regElemlist = (int*) malloc(numReg * tmp * sizeof(int));
+                }$
+            }
+
+            do {
+                r = regNumList[j] -1
+                regElemSize[r] = regElemSize[r] + 1
+                regndx = regElemSize[r] -1
+                regElemlist[r][regndx] = j
+            }for j in regNumList
+        }
+
+        setupSymmetryPlanes(edgeNodes){
+            //local
+            nidx = 0
+            do{
+                tmpedgeNodes[i] = 0
+                planeInc = i * edgeNodes * edgeNodes
+                rowInc = i * edgeNodes
+                do{
+                    tmpedgeNodes[j] = 0
+                    if(m_planeLoc == 0) {
+                        symmZ[nidx] = rowInc + j
+                    }
+                    if(m_rowLoc == 0) {
+                        symmY[nidx] = planeInc + j
+                    }
+                    if(m_colLoc == 0) {
+                        symmX[nidx] = planeInc + j * edgeNodes
+                    }
+                } for j in tmpedgeNodes
+                nidx = nidx + 1
+            } for i in tmpedgeNodes
+        }
+
+        setupElementConnectivities(edgeElems) {
+            lxim[0] = 0
+
+            tmp = 1
+            if (tmp < numElem) {
+                do {
+                    lxim[tmp] = tmp - 1
+                    lxip[tmp - 1] = tmp
+                    tmp = tmp + 1
+                } while (tmp < numElem)
+            }
+            lxip[numElem - 1] = numElem - 1
+
+            do {
+                tmpedgeElems[i] = 0
+                letam[i] = i
+                letap[numElem - edgeElems + i] = numElem - edgeElems + i
+            } for i in tmpedgeElems
+
+            tmp = edgeElems
+            if (tmp < numElem) {
+                do {
+                    letam[tmp] = tmp - edgeElems
+                    letap[tmp - edgeElems] = tmp
+                    tmp = tmp + 1
+                } while (tmp < numElem)
+            }
+
+            do {
+                tmpedgeElemssq[i] = 0
+                lzetam[i] = i
+                lzetap[numElem - edgeElems * edgeElems + i] = numElem - edgeElems * edgeElems + i
+            } for i in tmpedgeElemssq
+
+            tmp = edgeElems * edgeElems
+            if (tmp < numElem) {
+                do {
+                    lzetam[tmp] = tmp - edgeElems * edgeElems
+                    lzetap[tmp - edgeElems * edgeElems] = tmp
+                    tmp = tmp + 1
+                } while (tmp < numElem)
+            }
+        }
+
+        setupBoundaryConditions(edgeElems) {
+            //local ghostIdx
+            do {
+                elemBC[i] = 0
+            } for i in elemBC
+
+            do {
+                ghostIdx[i] = getIntMin()
+            } for i in ghostIdx
+
+            //local pidx
+            pidx = numElem
+            if (m_planeMin != 0) {
+                ghostIdx[0] = pidx
+                pidx = pidx + sizeX * sizeY
+            }
+
+            if (m_planeMax != 0) {
+                ghostIdx[1] = pidx
+                pidx = pidx + sizeX * sizeY
+            }
+
+            if (m_rowMin != 0) {
+                ghostIdx[2] = pidx
+                pidx = pidx + sizeX * sizeZ
+            }
+
+            if (m_rowMax != 0) {
+                ghostIdx[3] = pidx
+                pidx = pidx + sizeX * sizeZ
+            }
+
+            if (m_colMin != 0) {
+                ghostIdx[4] = pidx
+                pidx = pidx + sizeY * sizeZ
+            }
+
+            if (m_colMax != 0) {
+                ghostIdx[5] = pidx
+            }
+
+            do {
+                tmpedgeElems[i] = 0
+                planeInc = i * edgeElems * edgeElems
+                rowInc = i * edgeElems
+                do {
+                    tmpedgeElems[j] = 0
+                    if(m_planeLoc == 0) {
+                        elemBC[rowInc+ j] = logicalOr(elemBC[rowInc+ j], zETA_M_SYMM)
+                    } else {
+                        elemBC[rowInc+j] = logicalOr(elemBC[rowInc+j], zETA_M_COMM)
+                        lzetam[rowInc +j] = ghostIdx[0] + rowInc + j
+                    }
+                    if(m_planLoc == m_tp-1) {
+                        elemBC[rowInc + j + numELem - edgeElems * edgeElems] = logicalOr(elemBC[rowInc + j + numELem - edgeElems * edgeElems], zETA_P_FREE)
+                    } else {
+                        elemBC[rowInc + j + numElem - edgeElems * edgeElems] = logicalOr(elemBC[rowInc + j + numElem - edgeElems * edgeElems], zETA_P_COMM)
+                        lzetap[rowInc + j + numElem - edgeElems * edgeElems] = ghostIdx[1] + rowInc + j
+                    }
+                    if(m_rowLoc == 0) {
+                        elemBC[planeInc + j] = logicalOr(elemBC[planeInc + j], eTA_M_SYMM)
+                    } else {
+                        elemBC[planeInc + j] = logicalOr(elemBC[planeInc + j], eTA_M_COMM)
+                        letam[planeInc+j] = ghostIdx[2] + rowInc + j
+                    }
+                    if(m_rowLoc == m_tp-1) {
+                        elemBC[planeInc + j + edgeElems*edgeElems-edgeElems] = logicalOr(elemBC[planeInc + j + edgeElems*edgeElems-edgeElems], eTA_P_FREE)
+                    } else {
+                        elemBC[planeInc+j+edgeElems*edgeElems-edgeElems] = logicalOr(elemBC[planeInc+j+edgeElems*edgeElems-edgeElems], eTA_P_COMM)
+                        letap[planeInc + j + edgeElems*edgeElems - edgeElems] = ghostIdx[3] + rowInc + j
+                    }
+                    if(m_colLoc == 0) {
+                        elemBC[planeInc+j *edgeElems] = logicalOr(elemBC[planeInc+j *edgeElems], xI_M_SYMM)
+                    } else {
+                        elemBC[planeInc+j*edgeElems] = logicalOr(elemBC[planeInc+j*edgeElems], xI_M_COMM)
+                        lxim[planeInc+j*edgeElems+edgeElems-1] = logicalOr(lxim[planeInc+j*edgeElems+edgeElems-1], (ghostIdx[4] + rowInc + j))
+                    }
+                    if(m_colLoc == m_tp-1) {
+                        elemBC[planeInc+j*edgeElems+edgeElems-1] = logicalOr(elemBC[planeInc+j*edgeElems+edgeElems-1], xI_P_FREE)
+                    } else {
+                        elemBC[planeInc+j*edgeElems+edgeElems-1] = logicalOr(elemBC[planeInc+j*edgeElems+edgeElems-1], xI_P_COMM)
+                        lxip[planeInc+j*edgeElems+edgeElems-1] = ghostIdx[5] + rowInc + j
+                    }
+                }for j in tmpedgeElems
+            }for i in tmpedgeElems
+        }
+
+        //local side
+        //looks like all MPI stuff idk if we need it
+        initMeshDecomp(col, row, plane, side) {
+            // local
+            // testProcs
+            // dx,dy,dz
+            // myDom
+            // do cube root
+            // testProcs = cbrt(of processor number + 0.5)
+            // dx, dy, dz = testProcs
+            tmp = 0
+        }
+
+        some_function1(domain) {
+            edgeElems = m_nx
+            edgeNodes = edgeElems + 1
+            sizeX = edgeElems
+            sizeY = edgeElems
+            sizeZ = edgeElems
+            numElem = edgeElems * edgeElems * edgeElems
+            numNode = edgeNodes * edgeNodes * edgeNodes
+        }
+
+        some_function2(domain) {
+            do {
+                e[i] = 0
+                p[i] = 0
+                q[i] = 0
+                ss[i] = 0
+                v[i] = 1
+            }for i in e
+
+            do {
+                xd[i] = 0
+                yd[i] = 0
+                zd[i] = 0
+                xdd[i] = 0
+                ydd[i] = 0
+                zdd[i] = 0
+                nodalMass[i] = 0
+            }for i in xd
+        }
+
+        calcvolume(domain) {
+            volume = 0
+        }
+
+        some_function3(domain) {
+            dtfixed = -0.000001
+            stoptime = 0.01
+            deltatimemultlb = 1.1
+            deltatimemultub = 1.2
+            dtcourant = 100000000000000000000
+            //not there dthydro = 1*10^-2
+            //not there time = 0.0
+            //not there cycle = 0
+
+            //THIS FUNCTION CAN BE OPTIMIZED FOR IT
+            do {
+                //locals
+                //pointer to element nodelist is 2d so change this code
+                do {
+                    idx = 8 * i + lnode
+                    gnode = nodelist[idx]
+                    x_local[lnode] = x[gnode]
+                    y_local[lnode] = y[gnode]
+                    z_local[lnode] = z[gnode]
+                }for lnode in x_local
+
+                // begin CEV
+
+                dx61 = x_local[6] - x_local[1]
+                dy61 = y_local[6] - y_local[1]
+                dz61 = z_local[6] - z_local[1]
+
+                dx70 = x_local[7] - x_local[0]
+                dy70 = y_local[7] - y_local[0]
+                dz70 = z_local[7] - z_local[0]
+
+                dx63 = x_local[6] - x_local[3]
+                dy63 = y_local[6] - y_local[3]
+                dz63 = z_local[6] - z_local[3]
+
+                dx20 = x_local[2] - x_local[0]
+                dy20 = y_local[2] - y_local[0]
+                dz20 = z_local[2] - z_local[0]
+
+                dx50 = x_local[5] - x_local[0]
+                dy50 = y_local[5] - y_local[0]
+                dz50 = z_local[5] - z_local[0]
+
+                dx64 = x_local[6] - x_local[4]
+                dy64 = y_local[6] - y_local[4]
+                dz64 = z_local[6] - z_local[4]
+
+                dx31 = x_local[3] - x_local[1]
+                dy31 = y_local[3] - y_local[1]
+                dz31 = z_local[3] - z_local[1]
+
+                dx72 = x_local[7] - x_local[2]
+                dy72 = y_local[7] - y_local[2]
+                dz72 = z_local[7] - z_local[2]
+
+                dx43 = x_local[4] - x_local[3]
+                dy43 = y_local[4] - y_local[3]
+                dz43 = z_local[4] - z_local[3]
+
+                dx57 = x_local[5] - x_local[7]
+                dy57 = y_local[5] - y_local[7]
+                dz57 = z_local[5] - z_local[7]
+
+                dx14 = x_local[1] - x_local[4]
+                dy14 = y_local[1] - y_local[4]
+                dz14 = z_local[1] - z_local[4]
+
+                dx25 = x_local[2] - x_local[5]
+                dy25 = y_local[2] - y_local[5]
+                dz25 = z_local[2] - z_local[5]
+
+                volume = ((dx31 + dx72)*((dy63)*(dz20) - (dy20)*(dz63)) + \
+                    (dy31+dy72)*((dx20)*(dz63) - (dx63)*(dz20)) + \
+                    (dz31+dz72)*((dx63)*(dy20) - (dx20)*(dy63))) + \
+                    ((dx43+dx57)*((dy64)*(dz70) - (dy70)*(dz64)) + \
+                    (dy43+dy57)*((dx70)*(dz64) - (dx64)*(dz70)) + \
+                    (dz43+dz57)*((dx64)*(dy70) - (dx70)*(dy64)))+ \
+                    ((dx14+dx25)*((dy61)*(dz50) - (dy50)*(dz61)) + \
+                    (dy14+dy25)*((dx50)*(dz61) - (dx61)*(dz50)) + \
+                    (dz14+dz25)*((dx61)*(dy61) - (dx50)*(dy61)))
+
+                volume = volume / 12.0
+
+                // end CEV
+
+                volo[i] = volume
+                elemMass[i] = volume
+
+                do {
+                    x_local[j] = x_local[j]
+                    idx = 8 * i + j
+                    idx2 = nodelist[idx]
+                    nodalMass[idx2] = nodalMass[idx2] + volume/8.0
+                } for j in x_local
+
+            } for i in regNumList
+
+            ebase = 39487460
+            scale = (m_nx * m_tp)/45.0
+            einit = ebase * scale * scale * scale
+            if (m_rowLoc + m_colLoc + m_planeLoc == 0) {
+                e[0] = einit
+            }
+        }
+
+        finish(domain) {
+            @Extern {
+                @Language "C++"
+                @Includes { iostream }
+                ${
+                    std::cout << "Program runs through." << std::endl;
+                }$
+            }
+        }
+
+    Computation:
+        Space A {
+            some_function1(domain)
+
+            //AllocateElemPersistent
+            //AllocateNodePersistent
+            //done by declaring static arrays
+
+            setupCommBuffers(edgeNodes)
+
+            some_function2(domain)
+
+            buildMesh(m_nx, edgeNodes, edgeElems)
+
+            createRegionIndexSets(m_nr, m_balance)
+            setupSymmetryPlanes(edgeNodes)
+            setupElementConnectivities(edgeElems)
+            setupBoundaryConditions(edgeElems)
+
+            some_function3(domain)
+
+            finish(domain)
+        }
+
+    Partition:
+        Space A <un-partitioned> {
+            domain,
+            regNumList,
+            nodelist,
+            lxim,
+            lxip,
+            letam,
+            letap,
+            lzetam,
+            lzetap,
+            elemBC,
+            e,
+            p,
+            q,
+            ql,
+            qq,
+            v,
+            volo,
+            delv,
+            vdov,
+            arealg,
+            ss,
+            elemMass,
+            x,
+            y,
+            z,
+            xd,
+            yd,
+            zd,
+            xdd,
+            ydd,
+            zdd,
+            fx,
+            fy,
+            fz,
+            nodalMass,
+            symmX,
+            symmY,
+            symmZ,
+            regElemSize,
+            regBinEnd,
+            regElemlist,
+            x_local,
+            y_local,
+            z_local,
+            ghostIdx,
+            tmpedgeElems,
+            tmpbalance,
+            tmpedgeNodes,
+            tmpedgeElemssq
+        }

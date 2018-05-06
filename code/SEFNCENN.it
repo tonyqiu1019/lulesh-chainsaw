@@ -1,0 +1,150 @@
+Program(args) {
+    sEFNCENNEnv = new TaskEnvironment(name: "sEFNCENN")
+    bind_input(sEFNCENNEnv, "domain", args.domain)
+    execute(task: "sEFNCENN"; environment: sEFNCENNEnv)
+}
+
+Task "sEFNCENN":
+	Define: 
+		domain: 1d Array of Real double-precision
+		
+		pfx,
+		pfy,
+		pfz,
+		x,
+		y,
+		z: 1d Array of Real double-precision
+		
+		normalX0,
+		normalX1,
+		normalX2,
+		normalX3,
+		normalY0,
+		normalY1,
+		normalY2,
+		normalY3,
+		normalZ0,
+		normalZ1,
+		normalZ2,
+		normalZ3,
+		x0,
+		x1,
+		x2,
+		x3,
+		y0,
+		y1,
+		y2,
+		y3,
+		z0,
+		z1,
+		z2,
+		z3,
+		bisectX0,
+		bisectY0,
+		bisectZ0,
+		bisectX1,
+		bisectY1,
+		bisectZ1,
+		areaX,
+		areaY,
+		areaZ: Real double-precision
+
+	Environment:
+		domain: link
+
+	Initialize: 
+		pfx.dimension1.range.min = 0
+		pfx.dimension1.range.max = 8
+		
+		pfy.dimension1.range.min = 0
+		pfy.dimension1.range.max = 8
+
+		pfz.dimension1.range.min = 0
+		pfz.dimension1.range.max = 8
+		
+		x.dimension1.range.min = 0
+		x.dimension1.range.max = 8
+	
+		y.dimension1.range.min = 0
+		y.dimension1.range.max = 8
+		
+		z.dimension1.range.min = 0
+		z.dimension1.range.max = 8
+
+	Stages:
+		init_to_zero(domain) {
+			do {
+				pfx[i] = 0
+				pfy[i] = 0
+				pfz[i] = 0
+			}for i in pfx	
+		}
+		sEFN(normalX0, normalX1, normalX2, normalX3, normalY0, normalY1, normalY2, normalY3, normalZ0, normalZ1, normalZ2, normalZ3, x0, x1, x2, x3, y0, y1, y2, y3, z0, z1, z2, z3) {
+			bisectX0 = 0.5 * (x3 + x2 - x1 - x0)
+			bisectY0 = 0.5 * (y3 + y2 - y1 - y0)
+			bisectZ0 = 0.5 * (z3 + z2 - z1 - z0)
+			areaX = 0.25 * (bisectY0 * bisectZ1 - bisectZ0 * bisectY1)
+			areaY = 0.25 * (bisectZ0 * bisectX1 - bisectX0 * bisectZ1)
+			areaZ = 0.25 * (bisectX0 * bisectY1 - bisectY0 * bisectX1)
+
+			normalX0 = normalX0 + areaX
+			normalX1 = normalX1 + areaX
+			normalX2 = normalX2 + areaX
+			normalX3 = normalX3 + areaX
+
+			normalY0 = normalY0 + areaY
+			normalY1 = normalY1 + areaY
+			normalY2 = normalY2 + areaY
+			normalY3 = normalY3 + areaY
+
+			normalZ0 = normalZ0 + areaZ
+			normalZ1 = normalZ1 + areaZ
+			normalZ2 = normalZ2 + areaZ
+			normalZ3 = normalZ3 + areaZ
+		}		 
+	Computation:
+        Space A { 
+		init_to_zero(domain)		
+		sEFN(pfx[0], pfy[0], pfz[0], pfx[1], pfy[1], pfz[1], pfx[2], pfy[2], pfz[2], pfx[3], pfy[3], pfz[3], x[0], y[0], z[0], x[1], y[1], z[1], x[2], y[2], z[2], x[3], y[3], z[3]) 
+		sEFN(pfx[0], pfy[0], pfz[0],
+					  pfx[4], pfy[4], pfz[4],
+					  pfx[5], pfy[5], pfz[5],
+					  pfx[1], pfy[1], pfz[1],
+					  x[0], y[0], z[0], x[4], y[4], z[4],
+					  x[5], y[5], z[5], x[1], y[1], z[1])
+		sEFN(pfx[1], pfy[1], pfz[1],
+					  pfx[5], pfy[5], pfz[5],
+					  pfx[6], pfy[6], pfz[6],
+					  pfx[2], pfy[2], pfz[2],
+					  x[1], y[1], z[1], x[5], y[5], z[5],
+					  x[6], y[6], z[6], x[2], y[2], z[2])
+		sEFN(pfx[2], pfy[2], pfz[2],
+					  pfx[6], pfy[6], pfz[6],
+					  pfx[7], pfy[7], pfz[7],
+					  pfx[3], pfy[3], pfz[3],
+					  x[2], y[2], z[2], x[6], y[6], z[6],
+					  x[7], y[7], z[7], x[3], y[3], z[3])
+		sEFN(pfx[3], pfy[3], pfz[3],
+					  pfx[7], pfy[7], pfz[7],
+					  pfx[4], pfy[4], pfz[4],
+					  pfx[0], pfy[0], pfz[0],
+					  x[3], y[3], z[3], x[7], y[7], z[7],
+					  x[4], y[4], z[4], x[0], y[0], z[0])
+		sEFN(pfx[4], pfy[4], pfz[4],
+					  pfx[7], pfy[7], pfz[7],
+					  pfx[6], pfy[6], pfz[6],
+					  pfx[5], pfy[5], pfz[5],
+					  x[4], y[4], z[4], x[7], y[7], z[7],
+					  x[6], y[6], z[6], x[5], y[5], z[5]) 
+			}
+		
+
+    Partition:
+        Space A <un-partitioned> { domain, pfx, pfy, pfz, x, y, z }
+
+		
+
+
+
+
+

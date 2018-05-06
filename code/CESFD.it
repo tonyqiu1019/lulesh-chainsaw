@@ -1,0 +1,176 @@
+Program(args) {
+    cESFDEnv = new TaskEnvironment(name: "cESFD")
+    bind_input(cESFDEnv, "domain", args.domain)
+    execute(task: "cESFD"; environment: cESFDEnv; initialize: args.size; \
+        partition: args.size)
+}
+
+Function init_rand() {
+    @Extern {
+        @Language "C++"
+        @Includes { time.h, cstdlib }
+        ${
+            srand(time(NULL));
+        }$
+    }
+}
+
+Function giveMeANumber(n) {
+    localvar = 0.0
+    @Extern {
+        @Language "C++"
+        @Includes { cstdlib }
+        ${
+            localvar = double(rand() % n);
+        }$
+    }
+    return localvar
+}
+
+Task "cESFD":
+    Define:
+        domain: 2d Array of Real double-precision
+        
+        // CalcElemShapeFunctionDerivatives Variables
+        b: 5d Array of Real double-precision
+        x: 4d Array of Real double-precision
+        y: 4d Array of Real double-precision
+        z: 4d Array of Real double-precision
+
+        volume: Real double-precision
+        domainSize: Integer
+        fjxxi, fjxet, fjxze: Real double-precision
+        fjyxi, fjyet, fjyze: Real double-precision
+        fjzxi, fjzet, fjzze: Real double-precision
+        cjxxi, cjxet, cjxze: Real double-precision
+        cjyxi, cjyet, cjyze: Real double-precision
+        cjzxi, cjzet, cjzze: Real double-precision
+
+    Environment:
+        domain: link
+
+    Initialize (size):
+        domainSize = size
+
+        b.dimension1.range.min = 0
+        b.dimension1.range.max = domainSize - 1
+        b.dimension2.range.min = 0
+        b.dimension2.range.max = domainSize - 1
+        b.dimension3.range.min = 0
+        b.dimension3.range.max = domainSize - 1
+        b.dimension4.range.min = 0
+        b.dimension4.range.max = 2
+        b.dimension5.range.min = 0
+        b.dimension5.range.max = 7
+
+        x.dimension1.range.min = 0
+        x.dimension1.range.max = domainSize - 1
+        x.dimension2.range.min = 0
+        x.dimension2.range.max = domainSize - 1
+        x.dimension3.range.min = 0
+        x.dimension3.range.max = domainSize - 1
+        x.dimension4.range.min = 0
+        x.dimension4.range.max = 7
+
+        y.dimension1.range.min = 0
+        y.dimension1.range.max = domainSize - 1
+        y.dimension2.range.min = 0
+        y.dimension2.range.max = domainSize - 1
+        y.dimension3.range.min = 0
+        y.dimension3.range.max = domainSize - 1
+        y.dimension4.range.min = 0
+        y.dimension4.range.max = 7
+
+        z.dimension1.range.min = 0
+        z.dimension1.range.max = domainSize - 1
+        z.dimension2.range.min = 0
+        z.dimension2.range.max = domainSize - 1
+        z.dimension3.range.min = 0
+        z.dimension3.range.max = domainSize - 1
+        z.dimension4.range.min = 0
+        z.dimension4.range.max = 7
+
+        init_rand()
+
+    Stages:
+        cESFD(domain) {
+            do {
+
+            do {
+                x[d1][d2][d3][i] = giveMeANumber(10) * 0.1
+                y[d1][d2][d3][i] = giveMeANumber(10) * 0.1
+                z[d1][d2][d3][i] = giveMeANumber(10) * 0.1
+            } for i in x
+
+            fjxxi = (0.125) * ( (x[d1][d2][d3][6]-x[d1][d2][d3][0]) + (x[d1][d2][d3][5]-x[d1][d2][d3][3]) - (x[d1][d2][d3][7]-x[d1][d2][d3][1]) - (x[d1][d2][d3][4]-x[d1][d2][d3][2]) )
+            fjxet = (0.125) * ( (x[d1][d2][d3][6]-x[d1][d2][d3][0]) - (x[d1][d2][d3][5]-x[d1][d2][d3][3]) + (x[d1][d2][d3][7]-x[d1][d2][d3][1]) - (x[d1][d2][d3][4]-x[d1][d2][d3][2]) )
+            fjxze = (0.125) * ( (x[d1][d2][d3][6]-x[d1][d2][d3][0]) + (x[d1][d2][d3][5]-x[d1][d2][d3][3]) + (x[d1][d2][d3][7]-x[d1][d2][d3][1]) + (x[d1][d2][d3][4]-x[d1][d2][d3][2]) )
+
+            fjyxi = (0.125) * ( (y[d1][d2][d3][6]-y[d1][d2][d3][0]) + (y[d1][d2][d3][5]-y[d1][d2][d3][3]) - (y[d1][d2][d3][7]-y[d1][d2][d3][1]) - (y[d1][d2][d3][4]-y[d1][d2][d3][2]) )
+            fjyet = (0.125) * ( (y[d1][d2][d3][6]-y[d1][d2][d3][0]) - (y[d1][d2][d3][5]-y[d1][d2][d3][3]) + (y[d1][d2][d3][7]-y[d1][d2][d3][1]) - (y[d1][d2][d3][4]-y[d1][d2][d3][2]) )
+            fjyze = (0.125) * ( (y[d1][d2][d3][6]-y[d1][d2][d3][0]) + (y[d1][d2][d3][5]-y[d1][d2][d3][3]) + (y[d1][d2][d3][7]-y[d1][d2][d3][1]) + (y[d1][d2][d3][4]-y[d1][d2][d3][2]) )
+
+            fjzxi = (0.125) * ( (z[d1][d2][d3][6]-z[d1][d2][d3][0]) + (z[d1][d2][d3][5]-z[d1][d2][d3][3]) - (z[d1][d2][d3][7]-z[d1][d2][d3][1]) - (z[d1][d2][d3][4]-z[d1][d2][d3][2]) )
+            fjzet = (0.125) * ( (z[d1][d2][d3][6]-z[d1][d2][d3][0]) - (z[d1][d2][d3][5]-z[d1][d2][d3][3]) + (z[d1][d2][d3][7]-z[d1][d2][d3][1]) - (z[d1][d2][d3][4]-z[d1][d2][d3][2]) )
+            fjzze = (0.125) * ( (z[d1][d2][d3][6]-z[d1][d2][d3][0]) + (z[d1][d2][d3][5]-z[d1][d2][d3][3]) + (z[d1][d2][d3][7]-z[d1][d2][d3][1]) + (z[d1][d2][d3][4]-z[d1][d2][d3][2]) )
+
+            cjxxi =     (fjyet * fjzze) - (fjzet * fjyze)
+            cjxet = 0 - (fjyxi * fjzze) + (fjzxi * fjyze)
+            cjxze =     (fjyxi * fjzet) - (fjzxi * fjyet)
+
+            cjyxi = 0 - (fjxet * fjzze) + (fjzet * fjxze)
+            cjyet =     (fjxxi * fjzze) - (fjzxi * fjxze)
+            cjyze = 0 - (fjxxi * fjzet) + (fjzxi * fjxet)
+
+            cjzxi =     (fjxet * fjyze) - (fjyet * fjxze)
+            cjzet = 0 - (fjxxi * fjyze) + (fjyxi * fjxze)
+            cjzze =     (fjxxi * fjyet) - (fjyxi * fjxet)
+
+            b[d1][d2][d3][0][0] = 0 - cjxxi  -  cjxet  -  cjxze
+            b[d1][d2][d3][0][1] =     cjxxi  -  cjxet  -  cjxze
+            b[d1][d2][d3][0][2] =     cjxxi  +  cjxet  -  cjxze
+            b[d1][d2][d3][0][3] = 0 - cjxxi  +  cjxet  -  cjxze
+            b[d1][d2][d3][0][4] = 0 - b[d1][d2][d3][0][2]
+            b[d1][d2][d3][0][5] = 0 - b[d1][d2][d3][0][3]
+            b[d1][d2][d3][0][6] = 0 - b[d1][d2][d3][0][0]
+            b[d1][d2][d3][0][7] = 0 - b[d1][d2][d3][0][1]
+
+            b[d1][d2][d3][1][0] = 0 - cjyxi  -  cjyet  -  cjyze
+            b[d1][d2][d3][1][1] =     cjyxi  -  cjyet  -  cjyze
+            b[d1][d2][d3][1][2] =     cjyxi  +  cjyet  -  cjyze
+            b[d1][d2][d3][1][3] = 0 - cjyxi  +  cjyet  -  cjyze
+            b[d1][d2][d3][1][4] = 0 - b[d1][d2][d3][1][2]
+            b[d1][d2][d3][1][5] = 0 - b[d1][d2][d3][1][3]
+            b[d1][d2][d3][1][6] = 0 - b[d1][d2][d3][1][0]
+            b[d1][d2][d3][1][7] = 0 - b[d1][d2][d3][1][1]
+
+            b[d1][d2][d3][2][0] = 0 - cjzxi  -  cjzet  -  cjzze
+            b[d1][d2][d3][2][1] =     cjzxi  -  cjzet  -  cjzze
+            b[d1][d2][d3][2][2] =     cjzxi  +  cjzet  -  cjzze
+            b[d1][d2][d3][2][3] = 0 - cjzxi  +  cjzet  -  cjzze
+            b[d1][d2][d3][2][4] = 0 - b[d1][d2][d3][2][2]
+            b[d1][d2][d3][2][5] = 0 - b[d1][d2][d3][2][3]
+            b[d1][d2][d3][2][6] = 0 - b[d1][d2][d3][2][0]
+            b[d1][d2][d3][2][7] = 0 - b[d1][d2][d3][2][1]
+
+            volume = (8.0) * ( fjxet * cjxet + fjyet * cjyet + fjzet * cjzet)
+
+            @Extern {
+                @Language "C++"
+                @Includes { iostream }
+                ${
+                    std::cout << "volume is " << taskGlobals->volume << std::endl;
+                }$
+            }
+
+            } for d1, d2, d3 in b
+        }
+
+    Computation:
+        Space A { cESFD(domain) }
+
+    Partition (size):
+        Space A <3d> {
+            domain: replicated, replicated, replicated
+            b, x, y, z: block_size(size, size, size)
+        }

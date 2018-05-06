@@ -1,0 +1,115 @@
+Program(args) {
+    cEVEnv = new TaskEnvironment(name: "cEV")
+    bind_input(cEVEnv, "domain", args.domain)
+    execute(task: "cEV"; environment: cEVEnv; initialize: args.size, args.x, args.y, args.z)
+}
+
+Task "cEV":
+    Define:
+        domain: 2d Array of Real double-precision
+        domainSize: Integer
+        //x1, x2, x3, x4, x5, x6, x7: Real double-precision 
+        //y1, y2, y3, y4, y5, y6, y7: Real double-precision 
+        //z1, z2, z3, z4, z5, z6, z7: Real double-precision 
+		x,
+		y,
+		z: 1d Array of Real double-precision
+		dx61, dx70, dx63, dx20, dx50, dx64, dx31, dx72, dx43, dx57, dx14, dx25: Real double-precision
+		dy61, dy70, dy63, dy20, dy50, dy64, dy31, dy72, dy43, dy57, dy14, dy25: Real double-precision
+		dz61, dz70, dz63, dz20, dz50, dz64, dz31, dz72, dz43, dz57, dz14, dz25: Real double-precision
+		twelveth, volume: Real double-precision
+	Environment:
+	    domain: link
+    
+	Initialize (size, x, y, z):
+        domainSize = size
+		twelveth = 0.0833333333
+        //x1= x2= x3= x4= x5= x6= x7 = 5 
+        //y1= y2= y3= y4= y5= y6= y7 = 6 
+        //z1= z2= z3= z4= z5= z6= z7 = 7 
+		
+		x.dimension1.range.min = 0
+		x.dimension1.range.max = 7	
+		
+		y.dimension1.range.min = 0
+		y.dimension1.range.max = 7	
+		
+		z.dimension1.range.min = 0
+		z.dimension1.range.max = 7	
+ 
+    Stages:
+        cEV(domain, x, y, z) {
+
+
+		   dx61 = x[6] - x[1]
+		   dy61 = y[6] - y[1]
+		   dz61 = z[6] - z[1]
+
+		   dx70 = x[7] - x[0]
+		   dy70 = y[7] - y[0]
+		   dz70 = z[7] - z[0]
+
+		   dx63 = x[6] - x[3]
+		   dy63 = y[6] - y[3]
+		   dz63 = z[6] - z[3]
+
+		   dx20 = x[2] - x[0]
+		   dy20 = y[2] - y[0]
+		   dz20 = z[2] - z[0]
+
+		   dx50 = x[5] - x[0]
+		   dy50 = y[5] - y[0]
+		   dz50 = z[5] - z[0]
+
+		   dx64 = x[6] - x[4]
+		   dy64 = y[6] - y[4]
+		   dz64 = z[6] - z[4]
+
+		   dx31 = x[3] - x[1]
+		   dy31 = y[3] - y[1]
+		   dz31 = z[3] - z[1]
+
+		   dx72 = x[7] - x[2]
+		   dy72 = y[7] - y[2]
+		   dz72 = z[7] - z[2]
+
+		   dx43 = x[4] - x[3]
+		   dy43 = y[4] - y[3]
+		   dz43 = z[4] - z[3]
+
+		   dx57 = x[5] - x[7]
+		   dy57 = y[5] - y[7]
+		   dz57 = z[5] - z[7]
+
+		   dx14 = x[1] - x[4]
+		   dy14 = y[1] - y[4]
+		   dz14 = z[1] - z[4]
+
+		   dx25 = x[2] - x[5]
+		   dy25 = y[2] - y[5]
+		   dz25 = z[2] - z[5]
+
+		//#define TRIPLE_PRODUCT(x1, y1, z1, x2, y2, z2, x3, y3, z3) 
+		  // ((x1)*((y2)*(z3) - (z2)*(y3)) + (x2)*((z1)*(y3) - (y1)*(z3)) + (x3)*((y1)*(z2) - (z1)*(y2)))
+		  // ((dx31 + dx72)*((dy63)*(dz20) - (dy20)*(dz63)) + (dy31+dy72)*((dx20)*(dz63) - (dx63)*(dz20)) + (dz31+dz72)*((dx63)*(dy20) - (dx20)*(dy63)))
+		 //  ((dx43+dx57)*((dy64)*(dz70) - (dy70)*(dz64)) + (dy43+dy57)*((dx70)*(dz64) - (dx64)*(dz70)) + (dz43+dz57)*((dx64)*(dy70) - (dx70)*(dy64)))
+		 //  ((dx14+dx25)*((dy61)*(dz50) - (dy50)*(dz61)) + (dy14+dy25)*((dx50)*(dz61) - (dx61)*(dz50)) + (dz14+dz25)*((dx61)*(dy61) - (dx50)*(dy61)))
+
+		   volume = ((dx31 + dx72)*((dy63)*(dz20) - (dy20)*(dz63)) + (dy31+dy72)*((dx20)*(dz63) - (dx63)*(dz20)) + (dz31+dz72)*((dx63)*(dy20) - (dx20)*(dy63))) + ((dx43+dx57)*((dy64)*(dz70) - (dy70)*(dz64)) + (dy43+dy57)*((dx70)*(dz64) - (dx64)*(dz70)) + (dz43+dz57)*((dx64)*(dy70) - (dx70)*(dy64)))+ ((dx14+dx25)*((dy61)*(dz50) - (dy50)*(dz61)) + (dy14+dy25)*((dx50)*(dz61) - (dx61)*(dz50)) + (dz14+dz25)*((dx61)*(dy61) - (dx50)*(dy61)))
+
+		  volume = volume * twelveth
+
+            @Extern {
+                @Language "C++"
+                @Includes { iostream }
+                ${ std::cout << "volume is " << taskGlobals->volume << std::endl; 
+                   std::cout << "twelveth is " << taskGlobals->twelveth << std::endl; 
+					}$
+            }
+        }
+
+    Computation:
+        Space A { cEV(domain, x, y, z) }
+
+    Partition:
+        Space A <un-partitioned> { domain, x, y, z }

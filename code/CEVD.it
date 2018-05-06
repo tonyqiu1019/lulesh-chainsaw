@@ -1,0 +1,77 @@
+Program(args) {
+    cEVDEnv = new TaskEnvironment(name: "cEVD")
+    bind_input(cEVDEnv, "domain", args.domain)
+    execute(task: "cEVD"; environment: cEVDEnv)
+}
+
+Task "cEVD":
+	Define:
+
+		domain,
+		dvdx,
+		dvdy,
+		dvdz,
+		x,
+		y,
+		z: 1d Array of Real double-precision
+		
+		twelfth: Real double-precision	
+	
+	Environment:
+		domain: link
+	
+	Initialize:
+		twelfth = 1.0/12.0
+		
+		dvdx.dimension1.range.min = 0
+		dvdx.dimension1.range.max = 8
+		
+		dvdy.dimension1.range.min = 0
+		dvdy.dimension1.range.max = 8
+
+		dvdz.dimension1.range.min = 0
+		dvdz.dimension1.range.max = 8
+		
+		x.dimension1.range.min = 0
+		x.dimension1.range.max = 8
+	
+		y.dimension1.range.min = 0
+		y.dimension1.range.max = 8
+		
+		z.dimension1.range.min = 0
+		z.dimension1.range.max = 8
+
+	Stages:
+		voluDer(x0, x1, x2, x3, x4, x5, y0, y1, y2, y3, y4, y5, z0, z1, z2, z3, z4, z5, dvdx1, dvdy1, dvdz1) {
+			dvdx1 =(y1 + y2) * (z0 + z1) - (y0 + y1) * (z1 + z2) + (y0 + y4) * (z3 + z4) - (y3 + y4) * (z0 + z4) -(y2 + y5) * (z3 + z5) + (y3 + y5) * (z2 + z5)
+		
+			dvdy1 = 0 - (x1 + x2) * (z0 + z1) + (x0 + x1) * (z1 + z2) - (x0 + x4) * (z3 + z4) + (x3 + x4) * (z0 + z4) + (x2 + x5) * (z3 + z5) - (x3 + x5) * (z2 + z5)
+
+			dvdz1 = 0 - (y1 + y2) * (x0 + x1) + (y0 + y1) * (x1 + x2) - (y0 + y4) * (x3 + x4) + (y3 + y4) * (x0 + x4) + (y2 + y5) * (x3 + x5) - (y3 + y5) * (x2 + x5)
+			
+			dvdx1 = dvdx1 * twelfth
+			dvdy1 = dvdy1 * twelfth
+			dvdz1 = dvddz1 * twelfth
+		}
+
+	Computation:
+		Space A {
+			voluDer(x[1], x[2], x[3], x[4], x[5], x[7], y[1], y[2], y[3], y[4], y[5], y[7], z[1], z[2], z[3], z[4], z[5], z[7], dvdx[0], dvdy[0], dvdz[0]) 
+
+			voluDer(x[0], x[1], x[2], x[7], x[4], x[6], y[0], y[1], y[2], y[7], y[4], y[6], z[0], z[1], z[2], z[7], z[4], z[6], dvdx[3], dvdy[3], dvdz[3])
+
+			voluDer(x[3], x[0], x[1], x[6], x[7], x[5], y[3], y[0], y[1], y[6], y[7], y[5], z[3], z[0], z[1], z[6], z[7], z[5], dvdx[2], dvdy[2], dvdz[2])
+	   
+			voluDer(x[2], x[3], x[0], x[5], x[6], x[4], y[2], y[3], y[0], y[5], y[6], y[4], z[2], z[3], z[0], z[5], z[6], z[4], dvdx[1], dvdy[1], dvdz[1])
+	   
+			voluDer(x[7], x[6], x[5], x[0], x[3], x[1], y[7], y[6], y[5], y[0], y[3], y[1], z[7], z[6], z[5], z[0], z[3], z[1], dvdx[4], dvdy[4], dvdz[4])
+	  
+			voluDer(x[4], x[7], x[6], x[1], x[0], x[2], y[4], y[7], y[6], y[1], y[0], y[2], z[4], z[7], z[6], z[1], z[0], z[2], dvdx[5], dvdy[5], dvdz[5])
+	   
+			voluDer(x[5], x[4], x[7], x[2], x[1], x[3], y[5], y[4], y[7], y[2], y[1], y[3], z[5], z[4], z[7], z[2], z[1], z[3], dvdx[6], dvdy[6], dvdz[6])
+	   
+			voluDer(x[6], x[5], x[4], x[3], x[2], x[0], y[6], y[5], y[4], y[3], y[2], y[0], z[6], z[5], z[4], z[3], z[2], z[0], dvdx[7], dvdy[7], dvdz[7])
+		}
+
+	Partition: 
+		Space A <un-partitioned> {dvdx, dvdy, dvdz, x, y, z }
